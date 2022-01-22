@@ -66,17 +66,13 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(renderScreen *ebiten.Image) {
 	// Draw to game screen first
-	screen := gamescreen.Image
-
-	screen.Fill(color.RGBA{202, 244, 244, 0xff})
+	gamescreen.Fill(color.RGBA{202, 244, 244, 0xff})
 	OP := &ebiten.DrawImageOptions{}
-	OP.GeoM.Translate(160-32+20, 120-32+20) // -GopherRadius+Padding
-	screen.DrawImage(gopher, OP)
+	OP.GeoM.Translate(160-32, 120-32)
+	gamescreen.DrawImage(gopher, OP) // Offset Adjusted Automatically
 	OP.GeoM.Reset()
-	x, y := gamescreen.AdjustForOffset(-32, -32)
-	OP.GeoM.Translate(x, y)
-	screen.DrawImage(gopher, OP)
-
+	OP.GeoM.Translate(-32, -32)
+	gamescreen.DrawImage(gopher, OP)
 	gamescreen.Draw(renderScreen)
 }
 

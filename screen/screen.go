@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/peterhellberg/gfx"
+	"golang.org/x/image/math/f64"
 
 	cam "github.com/shubhamdwivedii/scene-engine/camera"
 )
@@ -18,13 +19,20 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+type CustomScreen interface {
+	DrawImage(image *ebiten.Image, op *ebiten.DrawImageOptions)
+	Draw(screen *ebiten.Image)
+	DrawLine(x1, y1, x2, y2 float64, col color.Color)
+	Fill(col color.Color)
+}
+
 type Screen struct {
 	ScreenWidth  int
 	ScreenHeight int
 	WorldWidth   int
 	WorldHeight  int
-	OffsetX      float64
-	OffsetY      float64
+	Offset       f64.Vec2
+	OffsetMatrix ebiten.GeoM
 	Image        *ebiten.Image
 	Camera       *cam.Camera
 	MaxIntensity float64
@@ -41,14 +49,17 @@ func New(screenWidth, screenHeight, worldWidth, worldHeight int, camera *cam.Cam
 	// Offsets are used to render relative to screenOrigin (instead of worldOrigin)
 	offx, offy := float64(worldWidth-screenWidth)/2, float64(worldHeight-screenHeight)/2
 
+	offsetMatrix := ebiten.GeoM{}
+	offsetMatrix.Translate(offx, offy)
+
 	return &Screen{
 		Image:        screenImg,
 		ScreenWidth:  screenWidth,
 		ScreenHeight: screenHeight,
 		WorldWidth:   worldWidth,
 		WorldHeight:  worldHeight,
-		OffsetX:      offx,
-		OffsetY:      offy,
+		OffsetMatrix: offsetMatrix,
+		Offset:       f64.Vec2{offx, offy},
 		Camera:       camera,
 		MaxIntensity: 10.0,
 		Intensity:    1.0,
@@ -77,14 +88,32 @@ func (s *Screen) Update() error {
 }
 
 func (s *Screen) AdjustForOffset(x, y float64) (float64, float64) {
-	return x + s.OffsetX, y + s.OffsetY
+	return x + s.Offset[0], y + s.Offset[1]
 }
 
+// Takes coordinates based on Screen and Adjusts automatically for World (Screen x1,y1 are 0,0)
+func (s *Screen) DrawImage(image *ebiten.Image, op *ebiten.DrawImageOptions) {
+	op.GeoM.Concat(s.OffsetMatrix)
+	s.Image.DrawImage(image, op)
+}
+
+func (s *Screen) Fill(col color.Color) {
+	s.Image.Fill(col)
+}
+
+func (s *Screen) DrawLine(x1, y1, x2, y2 float64, col color.Color) {
+	ebitenutil.DrawLine(s.Image, x1, y1, x1, y2, col)
+
+}
+
+// Draws CustomScreen to RenderScreen
 func (s *Screen) Draw(screen *ebiten.Image) {
 	s.DrawOP.GeoM.Reset()
 
 	// Adjusting for Offset so screen is centered by ScreenOrigin (instaead of WorldOrigin)
-	s.DrawOP.GeoM.Translate(-s.OffsetX, -s.OffsetY)
+	invertedOffset := s.OffsetMatrix
+	invertedOffset.Invert()
+	s.DrawOP.GeoM.Concat(invertedOffset)
 
 	if s.Intensity < 1 {
 		lerped := gfx.Lerp(s.Duration, 0, s.Intensity)
@@ -99,7 +128,7 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 
 	if s.Debug {
 		// Debug stuff to render on game scene screen
-		x1, y1 := s.OffsetX, s.OffsetY
+		x1, y1 := s.Offset[0], s.Offset[1]
 		x2, y2 := float64(s.ScreenWidth)+x1, float64(s.ScreenHeight)+y1
 		ebitenutil.DrawLine(s.Image, x1, y1, x1, y2, color.RGBA{255, 0, 0, 255})
 		ebitenutil.DrawLine(s.Image, x1, y1, x2, y1, color.RGBA{255, 0, 0, 255})
