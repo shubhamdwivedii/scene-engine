@@ -120,7 +120,6 @@ func (v *Viewport) MoveTo(x, y float64) {
 
 	if !v.AllowOutOfBounds {
 		dx, dy := v.OutOfBounds()
-		fmt.Println("dx, dy", dx, dy)
 		v.Position[0] += dx
 		v.Position[1] += dy
 	}
@@ -132,7 +131,6 @@ func (v *Viewport) MoveBy(dx, dy float64) {
 
 	if !v.AllowOutOfBounds {
 		odx, ody := v.OutOfBounds()
-		fmt.Println("dx, dy", odx, ody)
 		v.Position[0] += odx
 		v.Position[1] += ody
 	}
