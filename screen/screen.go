@@ -142,8 +142,10 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 
 	// Scaling Screen Image to Render Resolution
 	resX, resY := screen.Bounds().Dx(), screen.Bounds().Dy()
-	scaleX, scaleY := float64(resX)/float64(s.ScreenWidth), float64(resY)/float64(s.ScreenHeight)
-	s.DrawOP.GeoM.Scale(scaleX, scaleY)
+	if resX != s.ScreenWidth || resY != s.ScreenHeight {
+		scaleX, scaleY := float64(resX)/float64(s.ScreenWidth), float64(resY)/float64(s.ScreenHeight)
+		s.DrawOP.GeoM.Scale(scaleX, scaleY)
+	}
 
 	// Render Screen Image to Real Render Screen
 	screen.DrawImage(s.Image, s.DrawOP)
