@@ -95,10 +95,12 @@ func drawPlatforms(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 1024, 768
+	// return 1024, 768 // To Test Resolution Independent Scaling
+	return VIEW_W, VIEW_H // Ideally Return Internal Resolution Here.
 }
 
 func main() {
+	ebiten.SetWindowSize(1024, 768)
 	gamescreen.SetShakeIntensity(3.5)
 	gamescreen.SetDebug(true, true)
 	// viewport.AllowOutOfBounds = true
