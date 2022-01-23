@@ -140,6 +140,11 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 		ebitenutil.DrawLine(s.Image, x1, y2, x2, y2, color.RGBA{255, 0, 0, 255})
 	}
 
+	// Scaling Screen Image to Render Resolution
+	resX, resY := screen.Bounds().Dx(), screen.Bounds().Dy()
+	scaleX, scaleY := float64(resX/s.ScreenWidth), float64(resY/s.ScreenHeight)
+	s.DrawOP.GeoM.Scale(scaleX, scaleY)
+
 	// Render Screen Image to Real Render Screen
 	screen.DrawImage(s.Image, s.DrawOP)
 

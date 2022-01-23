@@ -95,7 +95,7 @@ func drawPlatforms(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 320, 240
+	return 640, 480
 }
 
 func main() {
