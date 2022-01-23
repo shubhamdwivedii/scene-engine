@@ -82,10 +82,6 @@ func (c *Camera) Draw(screen *ebiten.Image) {
 	}
 }
 
-func (c *Camera) EnableDebug() {
-	c.Debug = true
-}
-
 func (c *Camera) FocusOn(entity FocusableEntity) {
 	c.FocusedEntity = entity
 	c.AutoFocus = true

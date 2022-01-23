@@ -15,18 +15,22 @@ import (
 
 type Game struct{}
 
+const (
+	WORLD_W, WORLD_H = 360, 280
+	VIEW_W, VIEW_H   = 320, 240
+)
+
 var gamescreen *scr.Screen
 var viewport *vpt.Viewport
 var camera *cam.Camera
 var gopher *gop.Gopher
 
 func init() {
-	gopher = gop.New(360/2, 280/2, 7)
-	viewport = vpt.New(320, 240)
-	camera = cam.New(360, 280, 120, 120, 360/3, 280/2)
+	gopher = gop.New(WORLD_W/2, WORLD_H/2, 7)
+	viewport = vpt.New(VIEW_W, VIEW_H, WORLD_W, WORLD_H)
+	camera = cam.New(WORLD_W, WORLD_H, 120, 120, WORLD_W/3, WORLD_H/2)
 	camera.FocusOn(gopher)
-	camera.EnableDebug()
-	gamescreen = scr.New(320, 240, 360, 280, viewport, camera)
+	gamescreen = scr.New(VIEW_W, VIEW_H, WORLD_W, WORLD_H, viewport, camera)
 }
 
 func (g *Game) Update() error {
@@ -96,7 +100,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 
 func main() {
 	gamescreen.SetShakeIntensity(3.5)
-	gamescreen.EnableDebug()
+	gamescreen.SetDebug(true, true)
+	// viewport.AllowOutOfBounds = true
 	if err := ebiten.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
 	}

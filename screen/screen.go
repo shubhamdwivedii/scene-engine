@@ -63,6 +63,7 @@ func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.V
 		OffsetMatrix: offsetMatrix,
 		Offset:       f64.Vec2{offx, offy},
 		Viewport:     viewport,
+		Camera:       camera,
 		MaxIntensity: 10.0,
 		Intensity:    1.0,
 		Duration:     1.0,
@@ -70,8 +71,9 @@ func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.V
 	}
 }
 
-func (s *Screen) EnableDebug() {
-	s.Debug = true
+func (s *Screen) SetDebug(viewport, camera bool) {
+	s.Debug = viewport
+	s.Camera.Debug = camera
 }
 
 func (s *Screen) Shake() {

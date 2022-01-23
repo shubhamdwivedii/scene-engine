@@ -9,16 +9,21 @@ import (
 )
 
 type Viewport struct {
-	Dimensions f64.Vec2
-	Position   f64.Vec2
-	ZoomFactor int
-	Rotation   int
+	WorldView        f64.Vec2
+	Dimensions       f64.Vec2
+	Position         f64.Vec2 // TopLeft (Not Middle)
+	WorldCenter      f64.Vec2
+	ZoomFactor       int
+	Rotation         int
+	AllowOutOfBounds bool
 }
 
 // Viewport should have same dimenstions as Viewable Screen
-func New(screenWidth, screenHeight float64) *Viewport {
+func New(screenWidth, screenHeight, worldWidth, worldHeight int) *Viewport {
 	return &Viewport{
-		Dimensions: f64.Vec2{screenWidth, screenHeight},
+		Dimensions:  f64.Vec2{float64(screenWidth), float64(screenHeight)},
+		WorldView:   f64.Vec2{float64(worldWidth), float64(worldHeight)},
+		WorldCenter: f64.Vec2{float64(worldWidth) / 2, float64(worldHeight) / 2},
 	}
 	// rest is zero valued
 }
@@ -49,6 +54,34 @@ func (v *Viewport) worldMatrix() ebiten.GeoM {
 	m.Rotate(float64(v.Rotation) * 2 * math.Pi / 360)
 	m.Translate(v.viewportCenter()[0], v.viewportCenter()[1])
 	return m
+}
+
+// Checks if Viewport is OutOfBounds (Outside WorldView)
+// Retuns dx, dy to adjust In-Bound
+func (v *Viewport) OutOfBounds() (dx float64, dy float64) {
+	x1, y1 := v.Position[0], v.Position[1]
+	x2, y2 := x1+v.Dimensions[0], y1+v.Dimensions[1]
+
+	padX := (v.WorldView[0] - v.Dimensions[0]) / 2
+	padY := (v.WorldView[1] - v.Dimensions[1]) / 2
+
+	if x1 < 0-padX {
+		dx = x1*(-1) - padX
+	}
+
+	if x2 > v.Dimensions[0]+padX {
+		dx = (v.Dimensions[0] + padX) - x2
+	}
+
+	if y1 < 0-padY {
+		dy = y1*(-1) - padY
+	}
+
+	if y2 > v.Dimensions[1]+padY {
+		dy = (v.Dimensions[1] + padY) - y2
+	}
+
+	return dx, dy
 }
 
 func (v *Viewport) Render(world, screen *ebiten.Image) {
@@ -84,11 +117,25 @@ func (v *Viewport) Reset() {
 func (v *Viewport) MoveTo(x, y float64) {
 	v.Position[0] = x
 	v.Position[1] = y
+
+	if !v.AllowOutOfBounds {
+		dx, dy := v.OutOfBounds()
+		fmt.Println("dx, dy", dx, dy)
+		v.Position[0] += dx
+		v.Position[1] += dy
+	}
 }
 
 func (v *Viewport) MoveBy(dx, dy float64) {
 	v.Position[0] += dx
 	v.Position[1] += dy
+
+	if !v.AllowOutOfBounds {
+		odx, ody := v.OutOfBounds()
+		fmt.Println("dx, dy", odx, ody)
+		v.Position[0] += odx
+		v.Position[1] += ody
+	}
 }
 
 func (v *Viewport) ZoomBy(dz int) {
