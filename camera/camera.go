@@ -37,25 +37,27 @@ func New(worldWidth, worldHeight, focusWidth, focusHeight int, focusX, focusY fl
 }
 
 func (c *Camera) Update() error {
-	if ebiten.IsKeyPressed(ebiten.KeyJ) {
-		c.MoveBy(-4, 0)
-	}
+	if c.Debug {
+		if ebiten.IsKeyPressed(ebiten.KeyJ) {
+			c.MoveBy(-4, 0)
+		}
 
-	if ebiten.IsKeyPressed(ebiten.KeyL) {
-		c.MoveBy(4, 0)
-	}
+		if ebiten.IsKeyPressed(ebiten.KeyL) {
+			c.MoveBy(4, 0)
+		}
 
-	if ebiten.IsKeyPressed(ebiten.KeyI) {
-		c.MoveBy(0, -4)
-	}
+		if ebiten.IsKeyPressed(ebiten.KeyI) {
+			c.MoveBy(0, -4)
+		}
 
-	if ebiten.IsKeyPressed(ebiten.KeyK) {
-		c.MoveBy(0, 4)
-	}
+		if ebiten.IsKeyPressed(ebiten.KeyK) {
+			c.MoveBy(0, 4)
+		}
 
-	if c.AutoFocus && c.FocusedEntity != nil {
-		xPos, yPos := c.FocusedEntity.GetPosition()
-		c.Refocus(xPos, yPos)
+		if c.AutoFocus && c.FocusedEntity != nil {
+			xPos, yPos := c.FocusedEntity.GetPosition()
+			c.Refocus(xPos, yPos)
+		}
 	}
 
 	return nil
