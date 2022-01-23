@@ -8,23 +8,25 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	cam "github.com/shubhamdwivedii/scene-engine/camera"
+	gop "github.com/shubhamdwivedii/scene-engine/gopher"
 	scr "github.com/shubhamdwivedii/scene-engine/screen"
+	vpt "github.com/shubhamdwivedii/scene-engine/viewport"
 )
 
 type Game struct{}
 
-var gopher *ebiten.Image
 var gamescreen *scr.Screen
+var viewport *vpt.Viewport
 var camera *cam.Camera
+var gopher *gop.Gopher
 
 func init() {
-	var err error
-	gopher, _, err = ebitenutil.NewImageFromFile("./assets/gopher-title.png")
-	if err != nil {
-		log.Fatal(err)
-	}
-	camera = cam.New(320, 240)
-	gamescreen = scr.New(320, 240, 360, 280, camera)
+	gopher = gop.New(360/2, 280/2, 7)
+	viewport = vpt.New(320, 240)
+	camera = cam.New(360, 280, 120, 120, 360/3, 280/2)
+	camera.FocusOn(gopher)
+	camera.EnableDebug()
+	gamescreen = scr.New(320, 240, 360, 280, viewport, camera)
 }
 
 func (g *Game) Update() error {
@@ -32,34 +34,37 @@ func (g *Game) Update() error {
 		gamescreen.Shake()
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyA) || ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
-		gamescreen.Camera.MoveBy(-1, 0)
+	if ebiten.IsKeyPressed(ebiten.KeyA) {
+		gamescreen.Viewport.MoveBy(-1, 0)
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyD) || ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
-		camera.MoveBy(1, 0)
+	if ebiten.IsKeyPressed(ebiten.KeyD) {
+		viewport.MoveBy(1, 0)
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyW) || ebiten.IsKeyPressed(ebiten.KeyArrowUp) {
-		camera.MoveBy(0, -1)
+	if ebiten.IsKeyPressed(ebiten.KeyW) {
+		viewport.MoveBy(0, -1)
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyS) || ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
-		camera.MoveBy(0, 1)
+	if ebiten.IsKeyPressed(ebiten.KeyS) {
+		viewport.MoveBy(0, 1)
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyQ) {
-		camera.ZoomBy(-1)
+		viewport.ZoomBy(-1)
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyE) {
-		camera.ZoomBy(1)
+		viewport.ZoomBy(1)
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyR) {
-		camera.RoatateBy(1)
+		viewport.RoatateBy(1)
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyZ) {
-		camera.Reset()
+		viewport.Reset()
 	}
 
+	gopher.Update()
+	// Update Camera After FocusEntity has been updated. (Or else you'll see jitter)
+	camera.Update()
 	gamescreen.Update()
 	return nil
 }
@@ -67,13 +72,22 @@ func (g *Game) Update() error {
 func (g *Game) Draw(renderScreen *ebiten.Image) {
 	// Draw to game screen first
 	gamescreen.Fill(color.RGBA{202, 244, 244, 0xff})
-	OP := &ebiten.DrawImageOptions{}
-	OP.GeoM.Translate(160-32, 120-32)
-	gamescreen.DrawImage(gopher, OP) // Offset Adjusted Automatically
-	OP.GeoM.Reset()
-	OP.GeoM.Translate(-32, -32)
-	gamescreen.DrawImage(gopher, OP)
+	camMatrix := camera.GetOffsetMatrix()
+	gopher.Draw(gamescreen.Image, camMatrix)
+	drawPlatforms(gamescreen.Image)
+	camera.Draw(gamescreen.Image)
 	gamescreen.Draw(renderScreen)
+}
+
+func drawPlatforms(screen *ebiten.Image) {
+	pw := 40.0
+	ph := 20.0
+	gap := 50
+	py := 160.0
+	offx, offy := camera.GetOffset()
+	for i := 0; i < 20; i++ {
+		ebitenutil.DrawRect(screen, float64(i*gap)+offx, py+offy, pw, ph, color.RGBA{255, 0, 0, 255})
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -86,5 +100,4 @@ func main() {
 	if err := ebiten.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
 	}
-
 }

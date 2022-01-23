@@ -13,6 +13,7 @@ import (
 	"golang.org/x/image/math/f64"
 
 	cam "github.com/shubhamdwivedii/scene-engine/camera"
+	vpt "github.com/shubhamdwivedii/scene-engine/viewport"
 )
 
 func init() {
@@ -34,6 +35,7 @@ type Screen struct {
 	Offset       f64.Vec2
 	OffsetMatrix ebiten.GeoM
 	Image        *ebiten.Image
+	Viewport     *vpt.Viewport
 	Camera       *cam.Camera
 	MaxIntensity float64
 	Intensity    float64
@@ -43,7 +45,7 @@ type Screen struct {
 }
 
 // Width + Padding = World_Width
-func New(screenWidth, screenHeight, worldWidth, worldHeight int, camera *cam.Camera) *Screen {
+func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.Viewport, camera *cam.Camera) *Screen {
 	screenImg := ebiten.NewImage(worldWidth, worldHeight)
 
 	// Offsets are used to render relative to screenOrigin (instead of worldOrigin)
@@ -60,7 +62,7 @@ func New(screenWidth, screenHeight, worldWidth, worldHeight int, camera *cam.Cam
 		WorldHeight:  worldHeight,
 		OffsetMatrix: offsetMatrix,
 		Offset:       f64.Vec2{offx, offy},
-		Camera:       camera,
+		Viewport:     viewport,
 		MaxIntensity: 10.0,
 		Intensity:    1.0,
 		Duration:     1.0,
@@ -123,7 +125,7 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 		s.DrawOP.GeoM.Translate(-dx, -dy)
 	}
 
-	transformMatrix := s.Camera.RenderMatrix()
+	transformMatrix := s.Viewport.RenderMatrix()
 	s.DrawOP.GeoM.Concat(transformMatrix)
 
 	if s.Debug {
@@ -141,7 +143,7 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 
 	if s.Debug {
 		// Print debug content on real render screen
-		worldX, worldY := s.Camera.ScreenToWorld(ebiten.CursorPosition())
+		worldX, worldY := s.Viewport.ScreenToWorld(ebiten.CursorPosition())
 
 		ebitenutil.DebugPrint(
 			screen,
@@ -151,7 +153,7 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 		ebitenutil.DebugPrintAt(
 			screen,
 			fmt.Sprintf("%s\nCursor World Pos: %.2f,%.2f",
-				s.Camera.String(),
+				s.Viewport.String(),
 				worldX, worldY),
 			0, 240-32,
 		)
