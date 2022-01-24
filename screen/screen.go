@@ -20,14 +20,24 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-type CustomScreen interface {
+type Screen interface {
+	Shake()
+	SetShakeIntensity(intensity float64)
+	SetDebug(debugOn bool)
+	Update() error
+	Render(screen *ebiten.Image)
+	GetImage() (screenImage *ebiten.Image)
+	GetViewport() (viewport *vpt.Viewport)
+	GetCamera() (camera *cam.Camera)
+
 	DrawImage(image *ebiten.Image, op *ebiten.DrawImageOptions)
-	Draw(screen *ebiten.Image)
 	DrawLine(x1, y1, x2, y2 float64, col color.Color)
+	DrawRect(x, y, width, height float64, fill bool, col color.Color)
 	Fill(col color.Color)
+	DebugPrint(text string)
 }
 
-type Screen struct {
+type CustomScreen struct {
 	ScreenWidth  int
 	ScreenHeight int
 	WorldWidth   int
@@ -42,10 +52,11 @@ type Screen struct {
 	Duration     float64
 	DrawOP       *ebiten.DrawImageOptions
 	Debug        bool
+	AutoScaling  bool // Automatically Scales To Target Screen Resolution on Render
 }
 
 // Width + Padding = World_Width
-func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.Viewport, camera *cam.Camera) *Screen {
+func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.Viewport, camera *cam.Camera) Screen {
 	screenImg := ebiten.NewImage(worldWidth, worldHeight)
 
 	// Offsets are used to render relative to screenOrigin (instead of worldOrigin)
@@ -54,7 +65,7 @@ func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.V
 	offsetMatrix := ebiten.GeoM{}
 	offsetMatrix.Translate(offx, offy)
 
-	return &Screen{
+	return &CustomScreen{
 		Image:        screenImg,
 		ScreenWidth:  screenWidth,
 		ScreenHeight: screenHeight,
@@ -68,50 +79,36 @@ func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.V
 		Intensity:    1.0,
 		Duration:     1.0,
 		DrawOP:       &ebiten.DrawImageOptions{},
+		AutoScaling:  true,
 	}
 }
 
-func (s *Screen) SetDebug(viewport, camera bool) {
-	s.Debug = viewport
-	s.Camera.Debug = camera
+func (s *CustomScreen) SetDebug(debugOn bool) {
+	s.Debug = debugOn
+	s.Camera.Debug = debugOn
 }
 
-func (s *Screen) Shake() {
+func (s *CustomScreen) Shake() {
 	s.Intensity = 0.0
 }
 
 // 10.0 = Very Intense, 1.0  = Non Existent
-func (s *Screen) SetShakeIntensity(maxIntensity float64) {
+func (s *CustomScreen) SetShakeIntensity(maxIntensity float64) {
 	s.MaxIntensity = maxIntensity
 	s.Duration = maxIntensity / 10.0
 }
 
-func (s *Screen) Update() error {
+func (s *CustomScreen) Update() error {
 	s.Intensity += 1 / 60.0 // 60 FPS fixed.
 	return nil
 }
 
-func (s *Screen) AdjustForOffset(x, y float64) (float64, float64) {
-	return x + s.Offset[0], y + s.Offset[1]
-}
-
-// Takes coordinates based on Screen and Adjusts automatically for World (Screen x1,y1 are 0,0)
-func (s *Screen) DrawImage(image *ebiten.Image, op *ebiten.DrawImageOptions) {
-	op.GeoM.Concat(s.OffsetMatrix)
-	s.Image.DrawImage(image, op)
-}
-
-func (s *Screen) Fill(col color.Color) {
-	s.Image.Fill(col)
-}
-
-func (s *Screen) DrawLine(x1, y1, x2, y2 float64, col color.Color) {
-	ebitenutil.DrawLine(s.Image, x1, y1, x1, y2, col)
-
-}
+// func (s *CustomScreen) AdjustForOffset(x, y float64) (float64, float64) {
+// 	return x + s.Offset[0], y + s.Offset[1]
+// }
 
 // Draws CustomScreen to RenderScreen
-func (s *Screen) Draw(screen *ebiten.Image) {
+func (s *CustomScreen) Render(screen *ebiten.Image) {
 	s.DrawOP.GeoM.Reset()
 
 	// Adjusting for Offset so screen is centered by ScreenOrigin (instaead of WorldOrigin)
@@ -132,19 +129,17 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 
 	if s.Debug {
 		// Debug stuff to render on game scene screen
-		x1, y1 := s.Offset[0], s.Offset[1]
-		x2, y2 := float64(s.ScreenWidth)+x1, float64(s.ScreenHeight)+y1
-		ebitenutil.DrawLine(s.Image, x1, y1, x1, y2, color.RGBA{255, 0, 0, 255})
-		ebitenutil.DrawLine(s.Image, x1, y1, x2, y1, color.RGBA{255, 0, 0, 255})
-		ebitenutil.DrawLine(s.Image, x2, y1, x2, y2, color.RGBA{255, 0, 0, 255})
-		ebitenutil.DrawLine(s.Image, x1, y2, x2, y2, color.RGBA{255, 0, 0, 255})
+		s.drawViewportArea()
+		s.drawCameraFocusArea()
 	}
 
 	// Scaling Screen Image to Render Resolution
-	resX, resY := screen.Bounds().Dx(), screen.Bounds().Dy()
-	if resX != s.ScreenWidth || resY != s.ScreenHeight {
-		scaleX, scaleY := float64(resX)/float64(s.ScreenWidth), float64(resY)/float64(s.ScreenHeight)
-		s.DrawOP.GeoM.Scale(scaleX, scaleY)
+	if s.AutoScaling {
+		resX, resY := screen.Bounds().Dx(), screen.Bounds().Dy()
+		if resX != s.ScreenWidth || resY != s.ScreenHeight {
+			scaleX, scaleY := float64(resX)/float64(s.ScreenWidth), float64(resY)/float64(s.ScreenHeight)
+			s.DrawOP.GeoM.Scale(scaleX, scaleY)
+		}
 	}
 
 	// Render Screen Image to Real Render Screen
@@ -167,4 +162,45 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 			0, 240-32,
 		)
 	}
+}
+
+func (s *CustomScreen) GetImage() *ebiten.Image {
+	return s.Image
+}
+
+func (s *CustomScreen) GetViewport() *vpt.Viewport {
+	return s.Viewport
+}
+
+func (s *CustomScreen) GetCamera() *cam.Camera {
+	return s.Camera
+}
+
+func (s *CustomScreen) drawViewportArea() {
+	x1, y1 := s.Offset[0], s.Offset[1]
+	x2, y2 := float64(s.ScreenWidth)+x1, float64(s.ScreenHeight)+y1
+	s.DrawLine(x1, y1, x2, y1, color.RGBA{255, 0, 0, 255})
+	s.DrawLine(x1+1, y1, x1+1, y2, color.RGBA{255, 0, 0, 255})
+	s.DrawLine(x2, y1, x2, y2, color.RGBA{255, 0, 0, 255})
+	s.DrawLine(x1, y2-1, x2, y2-1, color.RGBA{255, 0, 0, 255})
+}
+
+func (s *CustomScreen) drawCameraFocusArea() {
+	// offx, offy := s.Camera.GetOffset()
+	cPosition := s.Camera.Position
+	cFocusCenter := s.Camera.FocusCenter
+	cFocusView := s.Camera.FocusView
+	s.DebugPrintAt(fmt.Sprintf("Camera-X: %0.2f Camera-Y: %0.2f", cPosition[0], cPosition[1]), 0, 32)
+
+	x1 := cFocusCenter[0] - cFocusView[0]/2
+	x2 := x1 + cFocusView[0]
+	y1 := cFocusCenter[1] - cFocusView[1]/2
+	y2 := y1 + cFocusView[1]
+
+	// Camera Offset is adjusted in CustomScreen.DebugPrintAt()
+
+	s.DrawLine(x1, y1, x2, y1, color.RGBA{0, 0, 255, 255})
+	s.DrawLine(x1+1, y1, x1+1, y2, color.RGBA{0, 0, 255, 255})
+	s.DrawLine(x2, y1, x2, y2, color.RGBA{0, 0, 255, 255})
+	s.DrawLine(x1, y2-1, x2, y2-1, color.RGBA{0, 0, 255, 255})
 }

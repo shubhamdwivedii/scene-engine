@@ -1,11 +1,7 @@
 package camera
 
 import (
-	"fmt"
-	"image/color"
-
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"golang.org/x/image/math/f64"
 )
 
@@ -61,27 +57,6 @@ func (c *Camera) Update() error {
 	}
 
 	return nil
-}
-
-// Only used for Debugging // Only draw to main render screen (no offsets)
-func (c *Camera) Draw(screen *ebiten.Image) {
-	if c.Debug {
-		offx, offy := c.GetOffset()
-		ebitenutil.DebugPrintAt(
-			screen,
-			fmt.Sprintf("Camera-X: %0.2f Camera-Y: %0.2f", c.Position[0], c.Position[1]),
-			0, 32,
-		)
-		x1 := offx + c.FocusCenter[0] - c.FocusView[0]/2
-		x2 := x1 + c.FocusView[0]
-		y1 := offy + c.FocusCenter[1] - c.FocusView[1]/2
-		y2 := y1 + c.FocusView[1]
-
-		ebitenutil.DrawLine(screen, x1, y1, x2, y1, color.RGBA{0, 0, 255, 255})
-		ebitenutil.DrawLine(screen, x1, y1, x1, y2, color.RGBA{0, 0, 255, 255})
-		ebitenutil.DrawLine(screen, x2, y1, x2, y2, color.RGBA{0, 0, 255, 255})
-		ebitenutil.DrawLine(screen, x1, y2, x2, y2, color.RGBA{0, 0, 255, 255})
-	}
 }
 
 func (c *Camera) FocusOn(entity FocusableEntity) {

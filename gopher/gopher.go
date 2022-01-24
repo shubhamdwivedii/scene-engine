@@ -1,12 +1,13 @@
 package gopher
 
 import (
-	"fmt"
+	"image/color"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	// cam "github.com/shubhamdwivedii/scene-engine/camera"
+
+	scr "github.com/shubhamdwivedii/scene-engine/screen"
 )
 
 type Gopher struct {
@@ -19,7 +20,6 @@ type Gopher struct {
 	H   int
 	V   float64
 	OP  *ebiten.DrawImageOptions
-	// Camera *cam.Camera
 }
 
 func New(cx, cy, v float64) *Gopher {
@@ -71,13 +71,9 @@ func (g *Gopher) Update() error {
 	return nil
 }
 
-func (g *Gopher) Draw(screen *ebiten.Image, transformMatrix ebiten.GeoM) {
+func (g *Gopher) Draw(gameScreen scr.Screen) {
 	g.OP.GeoM.Reset()
 	g.OP.GeoM.Translate(g.X, g.Y)
-	g.OP.GeoM.Concat(transformMatrix)
-	screen.DrawImage(g.Img, g.OP)
-	ebitenutil.DebugPrint(
-		screen,
-		fmt.Sprintf("X: %0.2f Y: %0.2f", g.X, g.Y),
-	)
+	gameScreen.DrawRect(g.X, g.Y, float64(g.W), float64(g.H), false, color.RGBA{255, 0, 0, 64})
+	gameScreen.DrawImage(g.Img, g.OP)
 }
