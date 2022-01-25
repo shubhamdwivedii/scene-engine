@@ -1,6 +1,7 @@
 package screen
 
 import (
+	"errors"
 	"fmt"
 	"image/color"
 	_ "image/png"
@@ -10,10 +11,13 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/peterhellberg/gfx"
-	"golang.org/x/image/math/f64"
 
 	cam "github.com/shubhamdwivedii/scene-engine/camera"
 	vpt "github.com/shubhamdwivedii/scene-engine/viewport"
+)
+
+const (
+	AUTO_PADDING = 20
 )
 
 func init() {
@@ -42,64 +46,88 @@ type CustomScreen struct {
 	ScreenHeight int
 	WorldWidth   int
 	WorldHeight  int
-	Offset       f64.Vec2
-	OffsetMatrix ebiten.GeoM
-	Image        *ebiten.Image
-	Viewport     *vpt.Viewport
-	Camera       *cam.Camera
-	MaxIntensity float64
-	Intensity    float64
-	Duration     float64
-	DrawOP       *ebiten.DrawImageOptions
-	Debug        bool
-	AutoScaling  bool // Automatically Scales To Target Screen Resolution on Render
+	// Offset            f64.Vec2
+	// OffsetMatrix      ebiten.GeoM
+	Image             *ebiten.Image
+	Viewport          *vpt.Viewport
+	Camera            *cam.Camera
+	MaxShakeIntensity float64
+	ShakeIntensity    float64
+	ShakeDuration     float64
+	DrawOP            *ebiten.DrawImageOptions
+	Debug             bool
+	AutoScaling       bool // Automatically Scales To Target Screen Resolution on Render
+	AutoPadding       bool
+	StaticViewport    bool
+	StaticCamera      bool
+}
+
+type ScreenOptions struct {
+	AutoScaling   bool
+	FixedViewport bool
 }
 
 // Width + Padding = World_Width
-func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.Viewport, camera *cam.Camera) Screen {
+func New(screenWidth, screenHeight, worldWidth, worldHeight int, viewport *vpt.Viewport, camera *cam.Camera) (Screen, error) {
+	autoPadding := false
+	if screenWidth == worldWidth && screenHeight == worldHeight {
+		if viewport != nil {
+			return nil, errors.New("viewport should be nil when screen-size equals world-size")
+		}
+		autoPadding = true
+		worldWidth += AUTO_PADDING * 2
+		worldHeight += AUTO_PADDING * 2
+	} else {
+		if viewport == nil {
+			return nil, errors.New("viewport cannot be nil if screen-size and world-size are different")
+		}
+	}
 	screenImg := ebiten.NewImage(worldWidth, worldHeight)
 
 	// Offsets are used to render relative to screenOrigin (instead of worldOrigin)
-	offx, offy := float64(worldWidth-screenWidth)/2, float64(worldHeight-screenHeight)/2
+	// offx, offy := float64(worldWidth-screenWidth)/2, float64(worldHeight-screenHeight)/2
 
-	offsetMatrix := ebiten.GeoM{}
-	offsetMatrix.Translate(offx, offy)
+	// offsetMatrix := ebiten.GeoM{}
+	// offsetMatrix.Translate(offx, offy)
 
 	return &CustomScreen{
-		Image:        screenImg,
-		ScreenWidth:  screenWidth,
-		ScreenHeight: screenHeight,
-		WorldWidth:   worldWidth,
-		WorldHeight:  worldHeight,
-		OffsetMatrix: offsetMatrix,
-		Offset:       f64.Vec2{offx, offy},
-		Viewport:     viewport,
-		Camera:       camera,
-		MaxIntensity: 10.0,
-		Intensity:    1.0,
-		Duration:     1.0,
-		DrawOP:       &ebiten.DrawImageOptions{},
-		AutoScaling:  true,
-	}
+		Image:             screenImg,
+		ScreenWidth:       screenWidth,
+		ScreenHeight:      screenHeight,
+		WorldWidth:        worldWidth,
+		WorldHeight:       worldHeight,
+		Viewport:          viewport,
+		Camera:            camera,
+		MaxShakeIntensity: 10.0,
+		ShakeIntensity:    1.0,
+		ShakeDuration:     1.0,
+		DrawOP:            &ebiten.DrawImageOptions{},
+		AutoScaling:       true,
+		StaticViewport:    viewport == nil,
+		StaticCamera:      camera == nil,
+		AutoPadding:       autoPadding,
+	}, nil
 }
 
 func (s *CustomScreen) SetDebug(debugOn bool) {
 	s.Debug = debugOn
-	s.Camera.Debug = debugOn
+	if s.Camera != nil {
+		s.Camera.Debug = debugOn
+	}
 }
 
 func (s *CustomScreen) Shake() {
-	s.Intensity = 0.0
+	s.ShakeIntensity = 0.0
 }
 
 // 10.0 = Very Intense, 1.0  = Non Existent
 func (s *CustomScreen) SetShakeIntensity(maxIntensity float64) {
-	s.MaxIntensity = maxIntensity
-	s.Duration = maxIntensity / 10.0
+	s.MaxShakeIntensity = maxIntensity
+	s.ShakeDuration = maxIntensity / 10.0
 }
 
 func (s *CustomScreen) Update() error {
-	s.Intensity += 1 / 60.0 // 60 FPS fixed.
+	s.ShakeIntensity += 1 / 60.0 // 60 FPS fixed.
 	return nil
 }
 
@@ -111,26 +139,34 @@ func (s *CustomScreen) Update() error {
 func (s *CustomScreen) Render(screen *ebiten.Image) {
 	s.DrawOP.GeoM.Reset()
 
-	// Adjusting for Offset so screen is centered by ScreenOrigin (instaead of WorldOrigin)
-	invertedOffset := s.OffsetMatrix
-	invertedOffset.Invert()
-	s.DrawOP.GeoM.Concat(invertedOffset)
-
-	if s.Intensity < 1 {
-		lerped := gfx.Lerp(s.Duration, 0, s.Intensity)
-		amplitude := s.MaxIntensity * lerped
+	if s.ShakeIntensity < 1 {
+		lerped := gfx.Lerp(s.ShakeDuration, 0, s.ShakeIntensity)
+		amplitude := s.MaxShakeIntensity * lerped
 		dx := amplitude * (2*rand.Float64() - 1)
 		dy := amplitude * (2*rand.Float64() - 1)
 		s.DrawOP.GeoM.Translate(-dx, -dy)
 	}
 
-	transformMatrix := s.Viewport.RenderMatrix()
-	s.DrawOP.GeoM.Concat(transformMatrix)
+	if s.AutoPadding && s.Viewport == nil {
+		// Need To Render CustomScreen slightly off left/top (on RenderScreen) to adjust for AutoPadding
+		s.DrawOP.GeoM.Translate(-AUTO_PADDING, -AUTO_PADDING)
+
+	} else {
+		transformMatrix := s.Viewport.RenderMatrix()
+		s.DrawOP.GeoM.Concat(transformMatrix)
+	}
 
 	if s.Debug {
 		// Debug stuff to render on game scene screen
-		s.drawViewportArea()
-		s.drawCameraFocusArea()
+		if s.Viewport != nil && !s.AutoPadding {
+			s.drawViewportArea()
+		} else {
+			s.drawFixedViewArea()
+		}
+
+		if s.Camera != nil {
+			s.drawCameraFocusArea()
+		}
 	}
 
 	// Scaling Screen Image to Render Resolution
@@ -147,20 +183,20 @@ func (s *CustomScreen) Render(screen *ebiten.Image) {
 
 	if s.Debug {
 		// Print debug content on real render screen
-		worldX, worldY := s.Viewport.ScreenToWorld(ebiten.CursorPosition())
+		// worldX, worldY := s.Viewport.ScreenToWorld(ebiten.CursorPosition())
 
 		ebitenutil.DebugPrint(
 			screen,
 			fmt.Sprintf("TPS: %0.2f", ebiten.CurrentTPS()),
 		)
 
-		ebitenutil.DebugPrintAt(
-			screen,
-			fmt.Sprintf("%s\nCursor World Pos: %.2f,%.2f",
-				s.Viewport.String(),
-				worldX, worldY),
-			0, 240-32,
-		)
+		// ebitenutil.DebugPrintAt(
+		// 	screen,
+		// 	fmt.Sprintf("%s\nCursor World Pos: %.2f,%.2f",
+		// 		s.Viewport.String(),
+		// 		worldX, worldY),
+		// 	0, 240-32,
+		// )
 	}
 }
 
@@ -177,12 +213,46 @@ func (s *CustomScreen) GetCamera() *cam.Camera {
 }
 
 func (s *CustomScreen) drawViewportArea() {
-	x1, y1 := s.Offset[0], s.Offset[1]
+	offx, offy := 0.0, 0.0
+
+	if s.Camera != nil {
+		// CameraOffset is already added once in s.DrawLine
+		offx, offy = s.Camera.GetOffsets()
+		// Adding CameraOffsets twice would make this move with camera (will appear static on screen)
+	}
+
+	// Current Position of the Viewport RED
+	x1, y1 := s.Viewport.Position[0]-offx, s.Viewport.Position[1]-offy
 	x2, y2 := float64(s.ScreenWidth)+x1, float64(s.ScreenHeight)+y1
 	s.DrawLine(x1, y1, x2, y1, color.RGBA{255, 0, 0, 255})
 	s.DrawLine(x1+1, y1, x1+1, y2, color.RGBA{255, 0, 0, 255})
 	s.DrawLine(x2, y1, x2, y2, color.RGBA{255, 0, 0, 255})
 	s.DrawLine(x1, y2-1, x2, y2-1, color.RGBA{255, 0, 0, 255})
+
+	// Inital Position of the Viewport (for reference) GREEN
+	x1, y1 = s.Viewport.InitialPosition[0]-offx, s.Viewport.InitialPosition[1]-offy
+	x2, y2 = float64(s.ScreenWidth)+x1, float64(s.ScreenHeight)+y1
+	s.DrawLine(x1, y1, x2, y1, color.RGBA{0, 255, 0, 255})
+	s.DrawLine(x1+1, y1, x1+1, y2, color.RGBA{0, 255, 0, 255})
+	s.DrawLine(x2, y1, x2, y2, color.RGBA{0, 255, 0, 255})
+	s.DrawLine(x1, y2-1, x2, y2-1, color.RGBA{0, 255, 0, 255})
+}
+
+func (s *CustomScreen) drawFixedViewArea() {
+	offx, offy := 0.0, 0.0
+
+	if s.Camera != nil {
+		offx, offy = s.Camera.GetOffsets()
+		// Adding CameraOffsets twice would make this move with camera (will appear static on screen)
+	}
+
+	x1, y1 := -offx, -offy // why -ve works ???
+	x2, y2 := float64(s.ScreenWidth)+x1, float64(s.ScreenHeight)+y1
+	s.DrawLine(x1, y1, x2, y1, color.RGBA{0, 64, 135, 255})
+	s.DrawLine(x1+1, y1, x1+1, y2, color.RGBA{0, 64, 135, 255})
+	s.DrawLine(x2, y1, x2, y2, color.RGBA{0, 64, 135, 255})
+	s.DrawLine(x1, y2-1, x2, y2-1, color.RGBA{0, 64, 135, 255})
+
 }
 
 func (s *CustomScreen) drawCameraFocusArea() {
@@ -203,4 +273,27 @@ func (s *CustomScreen) drawCameraFocusArea() {
 	s.DrawLine(x1+1, y1, x1+1, y2, color.RGBA{0, 0, 255, 255})
 	s.DrawLine(x2, y1, x2, y2, color.RGBA{0, 0, 255, 255})
 	s.DrawLine(x1, y2-1, x2, y2-1, color.RGBA{0, 0, 255, 255})
+}
+
+// Includes Padding-Offset if Viewport is Nil
+// Includes Camera Padding if Camera is not-Nil
+func (s *CustomScreen) GetOffsets() (dx, dy float64) {
+	if s.Camera != nil {
+		dx, dy = s.Camera.GetOffsets()
+	}
+	if s.AutoPadding && s.Viewport == nil {
+		dx += AUTO_PADDING
+		dy += AUTO_PADDING
+	}
+	return
+}
+
+func (s *CustomScreen) GetOffsetMatrix() (offsetMatrix ebiten.GeoM) {
+	if s.Camera != nil {
+		offsetMatrix = s.Camera.GetOffsetMatrix()
+	}
+	if s.AutoPadding && s.Viewport == nil {
+		offsetMatrix.Translate(AUTO_PADDING, AUTO_PADDING)
+	}
+	return
 }

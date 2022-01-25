@@ -106,7 +106,7 @@ func (c *Camera) MoveBy(dx, dy float64) {
 }
 
 // offset is (0,0) when camera position is (ww/2, wh/2)
-func (c *Camera) GetOffset() (float64, float64) {
+func (c *Camera) GetOffsets() (float64, float64) {
 	// Right +ve, Left -ve, Up -ve, Down +ve
 	dx, dy := c.Position[0]-c.WorldView[0]/2, c.Position[1]-c.WorldView[1]/2
 
@@ -117,7 +117,7 @@ func (c *Camera) GetOffset() (float64, float64) {
 // Concat this matrix for adjust for camera position
 func (c *Camera) GetOffsetMatrix() ebiten.GeoM {
 	matrix := ebiten.GeoM{}
-	dx, dy := c.GetOffset()
+	dx, dy := c.GetOffsets()
 	matrix.Translate(dx, dy)
 	return matrix
 }

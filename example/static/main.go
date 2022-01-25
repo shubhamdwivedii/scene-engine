@@ -7,24 +7,22 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	cam "github.com/shubhamdwivedii/scene-engine/camera"
 	gop "github.com/shubhamdwivedii/scene-engine/gopher"
 	ovr "github.com/shubhamdwivedii/scene-engine/overlay"
 	scr "github.com/shubhamdwivedii/scene-engine/screen"
-	vpt "github.com/shubhamdwivedii/scene-engine/viewport"
 )
 
 type Game struct{}
 
 const (
-	WORLD_W, WORLD_H = 360, 280
+	WORLD_W, WORLD_H = 320, 240
 	VIEW_W, VIEW_H   = 320, 240
 )
 
 var gameScreen scr.Screen
 var overlayScreen ovr.Overlay
-var viewport *vpt.Viewport
-var camera *cam.Camera
+
+// var camera *cam.Camera
 var gopher *gop.Gopher
 var crateBox *ebiten.Image
 
@@ -34,11 +32,11 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Gopher is still Center of Screen (as VIEW_W/H == WORLD_W/H)
 	gopher = gop.New(WORLD_W/2, WORLD_H/2, 7)
-	viewport = vpt.New(VIEW_W, VIEW_H, WORLD_W, WORLD_H, WORLD_W/2, WORLD_H/2)
-	camera = cam.New(WORLD_W, WORLD_H, 120, 120, WORLD_W/3, WORLD_H/2)
-	camera.FocusOn(gopher)
-	gameScreen, err = scr.New(VIEW_W, VIEW_H, WORLD_W, WORLD_H, viewport, camera)
+	// camera = cam.New(WORLD_W, WORLD_H, 120, 120, 360/3, 280/2)
+	// camera.FocusOn(gopher)
+	gameScreen, err = scr.New(VIEW_W, VIEW_H, WORLD_W, WORLD_H, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,38 +47,9 @@ func (g *Game) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
 		gameScreen.Shake()
 	}
-
-	if ebiten.IsKeyPressed(ebiten.KeyA) {
-		viewport.MoveBy(-1, 0)
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyD) {
-		viewport.MoveBy(1, 0)
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyW) {
-		viewport.MoveBy(0, -1)
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyS) {
-		viewport.MoveBy(0, 1)
-	}
-
-	if ebiten.IsKeyPressed(ebiten.KeyQ) {
-		viewport.ZoomBy(-1)
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyE) {
-		viewport.ZoomBy(1)
-	}
-
-	if ebiten.IsKeyPressed(ebiten.KeyR) {
-		viewport.RoatateBy(1)
-	}
-
-	if ebiten.IsKeyPressed(ebiten.KeyZ) {
-		viewport.Reset()
-	}
-
 	gopher.Update()
 	// Update Camera After FocusEntity has been updated. (Or else you'll see jitter)
-	camera.Update()
+	// camera.Update()
 	gameScreen.Update()
 	return nil
 }
@@ -106,7 +75,7 @@ func drawPlatforms(screen scr.Screen) {
 	pw := 40.0
 	ph := 20.0
 	gap := 50
-	py := 160.0
+	py := 160.0 - 20.0
 	for i := 0; i < 20; i++ {
 		screen.DrawRect(float64(i*gap), py, pw, ph, true, color.RGBA{255, 0, 0, 255})
 	}
@@ -121,8 +90,6 @@ func main() {
 	ebiten.SetWindowSize(640, 480)
 	gameScreen.SetShakeIntensity(7.5)
 	gameScreen.SetDebug(true)
-	gameScreen.GetViewport().SetMargin(10)
-	// viewport.AllowOutOfBounds = true
 	if err := ebiten.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
 	}

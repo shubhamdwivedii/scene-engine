@@ -11,21 +11,37 @@ import (
 type Viewport struct {
 	WorldView        f64.Vec2
 	Dimensions       f64.Vec2
-	Position         f64.Vec2 // TopLeft (Not Middle)
+	Position         f64.Vec2 // TopLeft Of Viewport (Not Middle)
+	InitialPosition  f64.Vec2
 	WorldCenter      f64.Vec2
+	Margin           float64
 	ZoomFactor       int
 	Rotation         int
 	AllowOutOfBounds bool
 }
 
 // Viewport should have same dimenstions as Viewable Screen
-func New(screenWidth, screenHeight, worldWidth, worldHeight int) *Viewport {
+// CenterX and CenterY are center point of Viewport relative to World
+// (ww/2, wh/2) if viewport is at center of world initially
+func New(screenWidth, screenHeight, worldWidth, worldHeight int, centerX, centerY float64) *Viewport {
+	posX, posY := centerX-float64(screenWidth)/2, centerY-float64(screenHeight)/2
 	return &Viewport{
-		Dimensions:  f64.Vec2{float64(screenWidth), float64(screenHeight)},
-		WorldView:   f64.Vec2{float64(worldWidth), float64(worldHeight)},
-		WorldCenter: f64.Vec2{float64(worldWidth) / 2, float64(worldHeight) / 2},
+		Dimensions:      f64.Vec2{float64(screenWidth), float64(screenHeight)},
+		WorldView:       f64.Vec2{float64(worldWidth), float64(worldHeight)},
+		WorldCenter:     f64.Vec2{float64(worldWidth) / 2, float64(worldHeight) / 2},
+		Position:        f64.Vec2{posX, posY},
+		InitialPosition: f64.Vec2{posX, posY},
 	}
 	// rest is zero valued
+}
+
+func (v *Viewport) SetMargin(margin float64) {
+	v.Margin = margin
+}
+
+// Get Center point Of Viewport in the World
+func (v *Viewport) GetCenter() (cx, cy float64) {
+	return v.Position[0] + v.Dimensions[0]/2, v.Position[1] + v.Dimensions[1]/2
 }
 
 func (v *Viewport) String() string {
@@ -62,23 +78,20 @@ func (v *Viewport) OutOfBounds() (dx float64, dy float64) {
 	x1, y1 := v.Position[0], v.Position[1]
 	x2, y2 := x1+v.Dimensions[0], y1+v.Dimensions[1]
 
-	padX := (v.WorldView[0] - v.Dimensions[0]) / 2
-	padY := (v.WorldView[1] - v.Dimensions[1]) / 2
-
-	if x1 < 0-padX {
-		dx = x1*(-1) - padX
+	if x1 < v.Margin {
+		dx = v.Margin - x1
 	}
 
-	if x2 > v.Dimensions[0]+padX {
-		dx = (v.Dimensions[0] + padX) - x2
+	if x2 > v.WorldView[0]-v.Margin {
+		dx = v.WorldView[0] - v.Margin - x2
 	}
 
-	if y1 < 0-padY {
-		dy = y1*(-1) - padY
+	if y1 < v.Margin {
+		dy = v.Margin - y1
 	}
 
-	if y2 > v.Dimensions[1]+padY {
-		dy = (v.Dimensions[1] + padY) - y2
+	if y2 > v.WorldView[1]-v.Margin {
+		dy = v.WorldView[1] - v.Margin - y2
 	}
 
 	return dx, dy
@@ -107,8 +120,8 @@ func (v *Viewport) ScreenToWorld(posX, posY int) (float64, float64) {
 }
 
 func (v *Viewport) Reset() {
-	v.Position[0] = 0
-	v.Position[1] = 0
+	v.Position[0] = v.InitialPosition[0]
+	v.Position[1] = v.InitialPosition[1]
 	v.Rotation = 0
 	v.ZoomFactor = 0
 }
