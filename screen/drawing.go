@@ -50,7 +50,7 @@ func (s *CustomScreen) DebugPrintAt(text string, x, y int) {
 	ebitenutil.DebugPrintAt(s.Image, text, x+int(offx), y+int(offy))
 }
 
-func (s *CustomScreen) DrawText(txt string, fnt font.Face, x, y float64, clr color.Color) {
+func (s *CustomScreen) DrawText(txt string, fnt font.Face, x, y int, clr color.Color) {
 	offx, offy := s.GetOffsets()
-	text.Draw(s.Image, txt, fnt, int(x+offx), int(y+offy), clr)
+	text.Draw(s.Image, txt, fnt, x+int(offx), y+int(offy), clr)
 }

@@ -41,7 +41,7 @@ type Screen interface {
 	Fill(col color.Color)
 	DebugPrint(text string)
 	DebugPrintAt(text string, x, y int)
-	DrawText(text string, fnt font.Face, x, y float64, clr color.Color)
+	DrawText(text string, fnt font.Face, x, y int, clr color.Color)
 }
 
 type CustomScreen struct {
