@@ -11,6 +11,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/peterhellberg/gfx"
+	"golang.org/x/image/font"
 
 	cam "github.com/shubhamdwivedii/scene-engine/camera"
 	vpt "github.com/shubhamdwivedii/scene-engine/viewport"
@@ -39,6 +40,8 @@ type Screen interface {
 	DrawRect(x, y, width, height float64, fill bool, col color.Color)
 	Fill(col color.Color)
 	DebugPrint(text string)
+	DebugPrintAt(text string, x, y int)
+	DrawText(text string, fnt font.Face, x, y float64, clr color.Color)
 }
 
 type CustomScreen struct {

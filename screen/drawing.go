@@ -5,6 +5,8 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text"
+	"golang.org/x/image/font"
 )
 
 // Takes coordinates based on Screen and Adjusts automatically for World (Screen x1,y1 are 0,0)
@@ -46,4 +48,9 @@ func (s *CustomScreen) DebugPrint(text string) {
 func (s *CustomScreen) DebugPrintAt(text string, x, y int) {
 	offx, offy := s.GetOffsets()
 	ebitenutil.DebugPrintAt(s.Image, text, x+int(offx), y+int(offy))
+}
+
+func (s *CustomScreen) DrawText(txt string, fnt font.Face, x, y float64, clr color.Color) {
+	offx, offy := s.GetOffsets()
+	text.Draw(s.Image, txt, fnt, int(x+offx), int(y+offy), clr)
 }
